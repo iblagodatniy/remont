@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Планировщик переезда склада</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f8fafc;color:#111827}
+.wrapper{max-width:1320px;margin:0 auto;padding:22px}
+h1{margin:0 0 8px;font-size:28px}
+.subtitle{margin:0 0 16px;color:#64748b;font-size:14px;line-height:1.5}
+.legend,.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.legend-card,.panel{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:12px 14px;box-shadow:0 2px 10px rgba(15,23,42,.05);font-size:14px}
+.legend-red{border-left:5px solid #fb7185}.legend-yellow{border-left:5px solid #facc15}.legend-blue{border-left:5px solid #60a5fa}.legend-green{border-left:5px solid #34d399}
+button{border:1px solid #d1d5db;background:#fff;border-radius:10px;padding:9px 12px;cursor:pointer;color:#111827;font-size:14px}
+button:hover{background:#f3f4f6}.danger{border-color:#fecaca;background:#fff1f2}.primary{border-color:#93c5fd;background:#eff6ff}
+.settings{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px;margin-bottom:16px;box-shadow:0 2px 10px rgba(15,23,42,.05);display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.settings label{font-size:14px;color:#374151;font-weight:700}
+.settings input{border:1px solid #d1d5db;border-radius:10px;padding:8px;font-size:14px}
+.progress{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px;margin-bottom:16px;box-shadow:0 2px 10px rgba(15,23,42,.05)}
+.progress-top{display:flex;justify-content:space-between;margin-bottom:10px;color:#374151;font-size:14px}
+.progress-line{height:12px;background:#e5e7eb;border-radius:999px;overflow:hidden}
+.progress-fill{height:100%;width:0;background:linear-gradient(135deg,#34d399,#10b981);transition:.2s}
+.stage{background:#fff;border:1px solid #e5e7eb;border-radius:16px;margin-bottom:16px;box-shadow:0 3px 14px rgba(15,23,42,.06);overflow:hidden}
+.stage-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:15px 16px;cursor:pointer;border-bottom:1px solid #e5e7eb}
+.stage-head h2{margin:0;font-size:18px}.stage-body{padding:16px}.stage.collapsed .stage-body{display:none}
+.stage-actions{display:flex;gap:8px;align-items:center}.small{font-size:12px;padding:6px 9px;border-radius:8px}
+.tasks{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+.task{border-radius:14px;padding:12px;border:1px solid #e5e7eb;display:flex;flex-direction:column;gap:9px;min-height:170px}
+.task-red{background:#fff1f2;border-color:#fecdd3}.task-yellow{background:#fffbeb;border-color:#fde68a}.task-blue{background:#eff6ff;border-color:#bfdbfe}.task-green{background:#ecfdf5;border-color:#a7f3d0}
+.task.done{opacity:.58}.task.done .task-title{text-decoration:line-through}
+.task-main{display:flex;gap:9px;align-items:flex-start}.task-main input{width:18px;height:18px;margin-top:1px;cursor:pointer;flex:0 0 auto}
+.task-title{font-size:14px;line-height:1.45}
+.role{font-size:12px;font-weight:700}.role-red{color:#be123c}.role-yellow{color:#a16207}.role-blue{color:#1d4ed8}.role-green{color:#047857}
+.switcher{display:flex;flex-wrap:wrap;gap:6px}.switcher button{font-size:12px;padding:5px 8px;border-radius:8px}
+.plan-box{background:rgba(255,255,255,.72);border:1px solid rgba(209,213,219,.9);border-radius:12px;padding:9px;display:flex;flex-direction:column;gap:7px}
+.plan-head{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:700}
+.plan-item{border-top:1px dashed #d1d5db;padding-top:8px}
+.plan-row{display:grid;grid-template-columns:1fr 70px;gap:8px;align-items:center}
+.plan-row input[type=range]{width:100%}.plan-row input[type=number]{width:70px;border:1px solid #d1d5db;border-radius:8px;padding:6px}
+.plan-date{font-size:12px;color:#334155;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:7px}
+.plan-note{width:100%;min-height:38px;border:1px solid #d1d5db;border-radius:8px;padding:7px;font-size:12px;resize:vertical}
+.remove-plan{font-size:12px;padding:4px 7px;border-radius:7px;background:#fff1f2;border-color:#fecaca}
+.sum{font-size:12px;color:#475569}.hidden{display:none!important}
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.42);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+.modal.show{display:flex}.modal-box{width:min(980px,96vw);max-height:90vh;background:#fff;border-radius:16px;box-shadow:0 20px 70px rgba(15,23,42,.25);overflow:hidden}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #e5e7eb}
+.modal-body{padding:16px;overflow:auto;max-height:calc(90vh - 62px)}
+.editor-stage{border:1px solid #e5e7eb;border-radius:12px;margin-bottom:12px;padding:12px}.editor-stage h3{margin:0 0 8px}
+.editor-task{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;margin:6px 0}
+.editor-task input[type=text]{width:100%;border:1px solid #d1d5db;border-radius:8px;padding:7px}
+.editor-task select{border:1px solid #d1d5db;border-radius:8px;padding:7px;background:#fff}
+@media(max-width:720px){.wrapper{padding:14px}.tasks{grid-template-columns:1fr}.plan-row{grid-template-columns:1fr}.plan-row input[type=number]{width:100%}.stage-head{align-items:flex-start}.stage-actions{flex-wrap:wrap;justify-content:flex-end}}
+</style>
+</head>
+<body>
+<div class="wrapper">
+<h1>Планировщик переезда склада</h1>
+<p class="subtitle">Чек-лист переезда склада с ответственными, длительностью задач и автоматическим расчетом даты завершения.</p>
+
+<div class="settings">
+<label for="startDate">Дата начала переезда:</label>
+<input type="date" id="startDate" onchange="setStartDate(this.value)">
+<span id="finishDateText">Дата завершения: не рассчитана</span>
+</div>
+
+<div class="legend">
+<div class="legend-card legend-red">🟥 Красный: делаю я</div>
+<div class="legend-card legend-yellow">🟨 Желтый: сотрудники склада</div>
+<div class="legend-card legend-blue">🟦 Синий: транспорт и подрядчики</div>
+<div class="legend-card legend-green">🟩 Зеленый: руководитель / координатор</div>
+</div>
+
+<div class="progress">
+<div class="progress-top">
+<span id="progressText">Выполнено: 0 из 0</span>
+<span id="progressPercent">0%</span>
+</div>
+<div class="progress-line"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
+<div class="toolbar">
+<button onclick="checkAll()">Отметить все</button>
+<button onclick="uncheckAll()">Снять все</button>
+<button onclick="toggleDone()" id="hideDoneBtn">Скрыть выполненные</button>
+<button onclick="collapseAll()">Свернуть все блоки</button>
+<button onclick="expandAll()">Развернуть все блоки</button>
+<button onclick="openEditor()" class="primary">Редактировать список пунктов</button>
+<button onclick="resetAll()" class="danger">Сбросить все данные</button>
+</div>
+
+<div class="panel" id="summary"></div>
+<div id="app"></div>
+</div>
+
+<div class="modal" id="editorModal">
+<div class="modal-box">
+<div class="modal-head">
+<b>Редактирование пунктов переезда</b>
+<div>
+<button onclick="saveEditor()" class="primary">Сохранить</button>
+<button onclick="closeEditor()">Закрыть</button>
+</div>
+</div>
+<div class="modal-body" id="editorBody"></div>
+</div>
+</div>
+
+<script>
+const defaultSections=[
+{title:'1. Подготовка к переезду склада',tasks:[
+{c:'green',t:'Назначить ответственного за переезд'},
+{c:'green',t:'Составить общий план переезда'},
+{c:'red',t:'Определить дату начала переезда'},
+{c:'green',t:'Зафиксировать дату, к которой склад должен заработать на новом месте'},
+{c:'red',t:'Проверить доступ к новому помещению'},
+{c:'red',t:'Проверить электричество, освещение и отопление'},
+{c:'red',t:'Проверить интернет и связь'},
+{c:'yellow',t:'Подготовить список сотрудников на переезд'}
+]},
+{title:'2. Инвентаризация и учет остатков',tasks:[
+{c:'yellow',t:'Провести инвентаризацию товара'},
+{c:'yellow',t:'Провести инвентаризацию упаковки'},
+{c:'yellow',t:'Провести инвентаризацию оборудования'},
+{c:'yellow',t:'Проверить расхождения по остаткам'},
+{c:'green',t:'Зафиксировать фактические остатки перед переездом'},
+{c:'yellow',t:'Разделить товар на группы по зонам хранения'},
+{c:'yellow',t:'Выделить товар для срочных отгрузок'}
+]},
+{title:'3. Подготовка нового склада',tasks:[
+{c:'blue',t:'Организовать уборку нового склада'},
+{c:'yellow',t:'Разметить зоны хранения'},
+{c:'yellow',t:'Разметить зону приемки'},
+{c:'yellow',t:'Разметить зону сборки заказов'},
+{c:'yellow',t:'Разметить зону упаковки'},
+{c:'yellow',t:'Разметить зону брака и возвратов'},
+{c:'blue',t:'Подготовить стеллажи и рабочие столы'},
+{c:'blue',t:'Проверить погрузочную зону'}
+]},
+{title:'4. Упаковка и подготовка товара к перевозке',tasks:[
+{c:'yellow',t:'Подготовить коробки, пленку и маркировку'},
+{c:'yellow',t:'Упаковать мелкий товар'},
+{c:'yellow',t:'Упаковать крупный товар'},
+{c:'yellow',t:'Подписать коробки по зонам хранения'},
+{c:'yellow',t:'Отдельно упаковать хрупкий товар'},
+{c:'yellow',t:'Отдельно упаковать товар для быстрых отгрузок'},
+{c:'green',t:'Проверить готовность товара к погрузке'}
+]},
+{title:'5. Оборудование, мебель и рабочие места',tasks:[
+{c:'yellow',t:'Разобрать рабочие столы'},
+{c:'yellow',t:'Разобрать стеллажи при необходимости'},
+{c:'yellow',t:'Упаковать оргтехнику'},
+{c:'yellow',t:'Упаковать сканеры, принтеры и терминалы'},
+{c:'blue',t:'Перевезти складское оборудование'},
+{c:'blue',t:'Собрать рабочие места на новом складе'},
+{c:'green',t:'Проверить готовность рабочих мест'}
+]},
+{title:'6. Транспорт и логистика переезда',tasks:[
+{c:'blue',t:'Найти транспорт для переезда'},
+{c:'blue',t:'Согласовать график машин'},
+{c:'blue',t:'Организовать погрузчиков или грузчиков'},
+{c:'blue',t:'Подготовить маршрут перевозки'},
+{c:'blue',t:'Организовать первую машину с самым важным товаром'},
+{c:'blue',t:'Организовать перевозку остального товара'},
+{c:'green',t:'Проконтролировать разгрузку на новом складе'}
+]},
+{title:'7. Переезд товара',tasks:[
+{c:'yellow',t:'Погрузить первую партию товара'},
+{c:'blue',t:'Перевезти первую партию товара'},
+{c:'yellow',t:'Разгрузить первую партию товара'},
+{c:'yellow',t:'Разложить первую партию по зонам'},
+{c:'yellow',t:'Погрузить основные остатки'},
+{c:'blue',t:'Перевезти основные остатки'},
+{c:'yellow',t:'Разгрузить основные остатки'},
+{c:'yellow',t:'Разложить товар по новым местам'}
+]},
+{title:'8. Запуск операций на новом складе',tasks:[
+{c:'green',t:'Проверить схему хранения'},
+{c:'yellow',t:'Настроить рабочие места сборки'},
+{c:'yellow',t:'Настроить рабочие места упаковки'},
+{c:'yellow',t:'Проверить принтеры этикеток'},
+{c:'yellow',t:'Проверить сканеры и терминалы'},
+{c:'yellow',t:'Проверить доступ к учетным системам'},
+{c:'green',t:'Сделать тестовую сборку заказа'},
+{c:'green',t:'Сделать тестовую отгрузку'}
+]},
+{title:'9. Старый склад и завершение',tasks:[
+{c:'yellow',t:'Проверить, что на старом складе ничего не осталось'},
+{c:'yellow',t:'Вывезти мусор'},
+{c:'yellow',t:'Собрать остатки упаковки и расходников'},
+{c:'red',t:'Проверить помещение перед сдачей'},
+{c:'red',t:'Передать ключи или закрыть доступ'},
+{c:'green',t:'Зафиксировать завершение переезда'},
+{c:'green',t:'Собрать список проблем после переезда'}
+]}
+];
+
+const storageKey='warehouse-moving-plan-v1';
+let saved=JSON.parse(localStorage.getItem(storageKey)||'{}');
+let sections=saved.sections||defaultSections;
+let state=saved.state||{};
+let startDate=saved.startDate||new Date().toISOString().slice(0,10);
+let hideDone=false;
+
+const app=document.getElementById('app');
+const progressText=document.getElementById('progressText');
+const progressPercent=document.getElementById('progressPercent');
+const progressFill=document.getElementById('progressFill');
+const summary=document.getElementById('summary');
+const startDateInput=document.getElementById('startDate');
+const finishDateText=document.getElementById('finishDateText');
+
+startDateInput.value=startDate;
+
+function persist(){
+localStorage.setItem(storageKey,JSON.stringify({sections,state,startDate}));
+}
+
+function id(si,ti){return si+'_'+ti}
+
+function roleName(c){
+return c==='red'?'делаю я':c==='yellow'?'сотрудники склада':c==='blue'?'транспорт и подрядчики':c==='green'?'руководитель / координатор':'';
+}
+
+function roleButtonText(c){
+return c==='red'?'я':c==='yellow'?'склад':c==='blue'?'транспорт':c==='green'?'координатор':'';
+}
+
+function getColor(task,tid){
+return state[tid]?.color||task.c;
+}
+
+function formatDate(d){
+if(!d)return 'не рассчитана';
+return d.toLocaleDateString('ru-RU');
+}
+
+function addDays(dateStr,days){
+if(!dateStr)return null;
+const d=new Date(dateStr+'T00:00:00');
+d.setDate(d.getDate()+Number(days||0));
+return d;
+}
+
+function getTotalDays(){
+let days=0;
+sections.forEach((s,si)=>s.tasks.forEach((t,ti)=>{
+const tid=id(si,ti);
+(state[tid]?.plans||[]).forEach(x=>days+=Number(x.days)||0);
+}));
+return days;
+}
+
+function render(){
+app.innerHTML='';
+sections.forEach((section,si)=>{
+const st=document.createElement('div');
+st.className='stage'+(state['stage_'+si]?.collapsed?' collapsed':'');
+
+const head=document.createElement('div');
+head.className='stage-head';
+head.onclick=e=>{if(e.target.tagName!=='BUTTON'){toggleStage(si)}};
+
+const h=document.createElement('h2');
+h.textContent=section.title;
+
+const acts=document.createElement('div');
+acts.className='stage-actions';
+
+const cnt=document.createElement('span');
+cnt.className='sum';
+
+let done=section.tasks.filter((t,ti)=>state[id(si,ti)]?.done).length;
+cnt.textContent=done+' / '+section.tasks.length;
+
+const collapse=document.createElement('button');
+collapse.className='small';
+collapse.textContent=state['stage_'+si]?.collapsed?'Развернуть':'Свернуть';
+collapse.onclick=e=>{e.stopPropagation();toggleStage(si)};
+
+acts.appendChild(cnt);
+acts.appendChild(collapse);
+head.appendChild(h);
+head.appendChild(acts);
+
+const body=document.createElement('div');
+body.className='stage-body';
+
+const tasks=document.createElement('div');
+tasks.className='tasks';
+
+section.tasks.forEach((task,ti)=>{
+const tid=id(si,ti);
+state[tid]=state[tid]||{};
+if(hideDone&&state[tid].done)return;
+tasks.appendChild(taskCard(task,si,ti,tid));
+});
+
+body.appendChild(tasks);
+st.appendChild(head);
+st.appendChild(body);
+app.appendChild(st);
+});
+
+updateProgress();
+persist();
+}
+
+function taskCard(task,si,ti,tid){
+const color=getColor(task,tid);
+const card=document.createElement('div');
+card.className='task task-'+color+(state[tid].done?' done':'');
+
+const main=document.createElement('label');
+main.className='task-main';
+
+const cb=document.createElement('input');
+cb.type='checkbox';
+cb.checked=!!state[tid].done;
+cb.onchange=()=>{state[tid].done=cb.checked;render()};
+
+const span=document.createElement('span');
+span.className='task-title';
+span.textContent=task.t;
+
+main.appendChild(cb);
+main.appendChild(span);
+
+const role=document.createElement('div');
+role.className='role role-'+color;
+role.textContent=roleName(color);
+
+const sw=document.createElement('div');
+sw.className='switcher';
+
+['red','yellow','blue','green'].forEach(c=>{
+const b=document.createElement('button');
+b.textContent=roleButtonText(c);
+b.style.background=c===color?(c==='red'?'#fb7185':c==='yellow'?'#facc15':c==='blue'?'#60a5fa':'#34d399'):'#fff';
+b.style.fontWeight=c===color?'700':'400';
+b.onclick=()=>{state[tid].color=c;render()};
+sw.appendChild(b);
+});
+
+card.appendChild(main);
+card.appendChild(role);
+card.appendChild(sw);
+card.appendChild(planBox(tid));
+
+return card;
+}
+
+function planBox(tid){
+state[tid].plans=state[tid].plans||[];
+
+const box=document.createElement('div');
+box.className='plan-box';
+
+const head=document.createElement('div');
+head.className='plan-head';
+
+const total=state[tid].plans.reduce((s,x)=>s+(Number(x.days)||0),0);
+head.innerHTML='<span>Длительность: '+total+' дн.</span>';
+
+const add=document.createElement('button');
+add.className='small';
+add.textContent='+';
+add.onclick=()=>{state[tid].plans.push({days:1,note:''});render()};
+
+head.appendChild(add);
+box.appendChild(head);
+
+state[tid].plans.forEach((item,i)=>{
+const it=document.createElement('div');
+it.className='plan-item';
+
+const row=document.createElement('div');
+row.className='plan-row';
+
+const range=document.createElement('input');
+range.type='range';
+range.min=1;
+range.max=7;
+range.step=1;
+range.value=item.days||1;
+
+const num=document.createElement('input');
+num.type='number';
+num.min=1;
+num.max=7;
+num.step=1;
+num.value=item.days||1;
+
+range.oninput=()=>{
+item.days=range.value;
+num.value=range.value;
+persist();
+updateProgress();
+};
+
+num.oninput=()=>{
+let v=Number(num.value)||1;
+if(v<1)v=1;
+if(v>7)v=7;
+item.days=v;
+num.value=v;
+range.value=v;
+persist();
+updateProgress();
+};
+
+row.appendChild(range);
+row.appendChild(num);
+
+const dateLine=document.createElement('div');
+dateLine.className='plan-date';
+dateLine.textContent='Ориентир завершения этого поля: '+formatDate(addDays(startDate,item.days||1));
+
+const note=document.createElement('textarea');
+note.className='plan-note';
+note.maxLength=120;
+note.placeholder='Комментарий, ответственный, машина, адрес, важные детали';
+note.value=item.note||'';
+note.oninput=()=>{item.note=note.value;persist()};
+
+const rem=document.createElement('button');
+rem.className='remove-plan';
+rem.textContent='Удалить поле';
+rem.onclick=()=>{state[tid].plans.splice(i,1);render()};
+
+it.appendChild(row);
+it.appendChild(dateLine);
+it.appendChild(note);
+it.appendChild(rem);
+box.appendChild(it);
+});
+
+return box;
+}
+
+function updateProgress(){
+let total=0;
+let done=0;
+let days=getTotalDays();
+
+sections.forEach((s,si)=>s.tasks.forEach((t,ti)=>{
+const tid=id(si,ti);
+total++;
+if(state[tid]?.done)done++;
+}));
+
+const p=total?Math.round(done/total*100):0;
+const finish=days?addDays(startDate,days):null;
+
+progressText.textContent='Выполнено: '+done+' из '+total;
+progressPercent.textContent=p+'%';
+progressFill.style.width=p+'%';
+
+finishDateText.textContent='Дата завершения: '+formatDate(finish);
+summary.textContent='Всего задач: '+total+' | Выполнено: '+done+' | Запланировано дней: '+days+' | Дата начала: '+formatDate(addDays(startDate,0))+' | Дата завершения переезда: '+formatDate(finish);
+}
+
+function setStartDate(value){
+startDate=value;
+render();
+}
+
+function toggleStage(si){
+state['stage_'+si]=state['stage_'+si]||{};
+state['stage_'+si].collapsed=!state['stage_'+si].collapsed;
+render();
+}
+
+function checkAll(){
+sections.forEach((s,si)=>s.tasks.forEach((t,ti)=>{
+state[id(si,ti)]=state[id(si,ti)]||{};
+state[id(si,ti)].done=true;
+}));
+render();
+}
+
+function uncheckAll(){
+sections.forEach((s,si)=>s.tasks.forEach((t,ti)=>{
+state[id(si,ti)]=state[id(si,ti)]||{};
+state[id(si,ti)].done=false;
+}));
+render();
+}
+
+function toggleDone(){
+hideDone=!hideDone;
+document.getElementById('hideDoneBtn').textContent=hideDone?'Показать выполненные':'Скрыть выполненные';
+render();
+}
+
+function collapseAll(){
+sections.forEach((s,si)=>{
+state['stage_'+si]=state['stage_'+si]||{};
+state['stage_'+si].collapsed=true;
+});
+render();
+}
+
+function expandAll(){
+sections.forEach((s,si)=>{
+state['stage_'+si]=state['stage_'+si]||{};
+state['stage_'+si].collapsed=false;
+});
+render();
+}
+
+function resetAll(){
+if(confirm('Сбросить галочки, роли, длительность и комментарии?')){
+state={};
+render();
+}
+}
+
+function openEditor(){
+const m=document.getElementById('editorModal');
+const body=document.getElementById('editorBody');
+body.innerHTML='';
+
+sections.forEach((s,si)=>{
+const div=document.createElement('div');
+div.className='editor-stage';
+
+const h=document.createElement('h3');
+h.textContent=s.title;
+div.appendChild(h);
+
+s.tasks.forEach((t,ti)=>{
+const row=document.createElement('div');
+row.className='editor-task';
+
+const show=document.createElement('input');
+show.type='checkbox';
+show.checked=!t.hidden;
+
+const txt=document.createElement('input');
+txt.type='text';
+txt.value=t.t;
+
+const sel=document.createElement('select');
+['red','yellow','blue','green'].forEach(c=>{
+const o=document.createElement('option');
+o.value=c;
+o.textContent=roleName(c);
+if(t.c===c)o.selected=true;
+sel.appendChild(o);
+});
+
+row.appendChild(show);
+row.appendChild(txt);
+row.appendChild(sel);
+div.appendChild(row);
+
+row.dataset.si=si;
+row.dataset.ti=ti;
+row._show=show;
+row._txt=txt;
+row._sel=sel;
+});
+
+body.appendChild(div);
+});
+
+m.classList.add('show');
+}
+
+function closeEditor(){
+document.getElementById('editorModal').classList.remove('show');
+}
+
+function saveEditor(){
+document.querySelectorAll('.editor-task').forEach(row=>{
+const si=+row.dataset.si;
+const ti=+row.dataset.ti;
+sections[si].tasks[ti].t=row._txt.value;
+sections[si].tasks[ti].c=row._sel.value;
+sections[si].tasks[ti].hidden=!row._show.checked;
+});
+sections=sections.map(s=>({...s,tasks:s.tasks.filter(t=>!t.hidden)}));
+closeEditor();
+render();
+}
+
+render();
+</script>
+</body>
+</html>
